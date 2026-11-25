@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WaitLens: NHS waiting times in England, hospital by hospital</title>
+  <meta name="description" content="Compare NHS referral-to-treatment waiting times by specialty and hospital provider in England. Independent, open-source, updated monthly from NHS England data.">
+  <meta property="og:title" content="WaitLens: NHS waiting times, hospital by hospital">
+  <meta property="og:description" content="How long are people waiting for planned NHS treatment near you? Compare providers by specialty, from NHS England's published data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#compare">Skip to the comparison</a>
+  <header class="masthead">
+    <div class="wrap masthead-row">
+      <a class="wordmark" href="./" aria-label="WaitLens home">
+        <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M13 8v5l3.5 2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M20 20l7 7" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>
+        <span>WaitLens</span>
+      </a>
+      <nav aria-label="Site">
+        <a href="#compare">Compare</a>
+        <a href="#rights">Your choices</a>
+        <a href="#method">Method</a>
+        <a href="https://github.com/chandan9502/waitlens">Code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro wrap" aria-labelledby="headline">
+      <p class="eyebrow" id="data-month">NHS England referral-to-treatment data</p>
+      <h1 id="headline">How long are people waiting for planned hospital treatment, and where is it quicker?</h1>
+      <p class="lede" id="lede">Loading the latest figures…</p>
+    </section>
+
+    <section class="wrap national" aria-labelledby="national-title">
+      <h2 class="visually-hidden" id="national-title">England at a glance</h2>
+      <div class="tiles" id="tiles" aria-live="polite"></div>
+      <figure class="chart-card">
+        <figcaption>
+          <strong>Share of the waiting list seen within 18 weeks, England</strong>
+          <span>Pathways still waiting at the end of each month, against the national targets</span>
+        </figcaption>
+        <div class="chart" id="national-chart" role="img" aria-label="Line chart of the share of the waiting list within 18 weeks"></div>
+        <details class="table-view">
+          <summary>Show as a table</summary>
+          <div id="national-table"></div>
+        </details>
+      </figure>
+    </section>
+
+    <section class="compare" id="compare" aria-labelledby="compare-title">
+      <div class="wrap">
+        <h2 id="compare-title">Compare providers for your treatment</h2>
+        <p class="section-lede">Pick the specialty you have been referred to. Add a postcode to see the providers near you first. NHS England reports waits for each hospital provider (a trust or an independent provider), not each hospital site.</p>
+
+        <form class="controls" id="controls" autocomplete="off">
+          <div class="field grow">
+            <label for="specialty">Specialty</label>
+            <select id="specialty" name="specialty"></select>
+            <p class="hint" id="specialty-hint"></p>
+          </div>
+          <div class="field">
+            <label for="postcode">Postcode <span class="optional">(optional)</span></label>
+            <div class="inline">
+              <input id="postcode" name="postcode" inputmode="text" autocapitalize="characters" spellcheck="false" placeholder="e.g. LS1 4AP" maxlength="8">
+              <button type="submit" class="button">Find</button>
+            </div>
+            <p class="hint" id="postcode-status" aria-live="polite">Looked up with postcodes.io. Nothing is stored.</p>
+          </div>
+          <div class="field">
+            <label for="radius">Distance</label>
+            <select id="radius" name="radius" disabled>
+              <option value="25">Within 25 miles</option>
+              <option value="50" selected>Within 50 miles</option>
+              <option value="100">Within 100 miles</option>
+              <option value="0">Anywhere in England</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sort">Sort by</label>
+            <select id="sort" name="sort">
+              <option value="distance">Nearest first</option>
+              <option value="p18">Most seen within 18 weeks</option>
+              <option value="md">Shortest median wait</option>
+              <option value="a_md">Shortest wait for admitted treatment</option>
+              <option value="n_md">Shortest wait for outpatient treatment</option>
+            </select>
+          </div>
+        </form>
+
+        <figure class="chart-card strip-card">
+          <figcaption>
+            <strong id="strip-title">How waits vary between providers</strong>
+            <span id="strip-sub">Each dot is a provider</span>
+          </figcaption>
+          <div class="segmented" role="group" aria-label="Measure">
+            <button type="button" class="seg" data-measure="md" aria-pressed="true">Median wait</button>
+            <button type="button" class="seg" data-measure="p18" aria-pressed="false">Within 18 weeks</button>
+          </div>
+          <div class="chart" id="strip-chart"></div>
+        </figure>
+
+        <div class="results-head">
+          <p id="results-count" aria-live="polite"></p>
+          <label class="check"><input type="checkbox" id="show-small"> Include very small services</label>
+        </div>
+        <ol class="results" id="results"></ol>
+      </div>
+    </section>
+
+    <section class="wrap prose" id="rights" aria-labelledby="rights-title">
+      <h2 id="rights-title">What you can do with this</h2>
+      <div class="cards">
+        <article>
+          <h3>Choosing where you are referred</h3>
+          <p>If a GP needs to refer you for a physical or mental health condition, in most cases you have a legal right to choose the hospital or service, including many independent hospitals that treat NHS patients at no extra cost to the NHS. The shortlist is chosen by your GP, so tell them your preferences.</p>
+          <p><a href="https://www.nhs.uk/using-the-nhs/about-the-nhs/your-choices-in-the-nhs/">Your choices in the NHS (nhs.uk)</a></p>
+        </article>
+        <article>
+          <h3>If you have waited a long time</h3>
+          <p>The NHS Choice Framework includes a right to ask to change provider when maximum waiting times are exceeded. Hospitals may also contact people who have waited a long time to ask if they would travel for earlier treatment.</p>
+          <p><a href="https://www.gov.uk/government/publications/the-nhs-choice-framework/the-nhs-choice-framework-what-choices-are-available-to-me-in-the-nhs">NHS Choice Framework (GOV.UK)</a></p>
+        </article>
+        <article>
+          <h3>What these numbers cannot tell you</h3>
+          <p>They describe everyone on a provider's list. Urgent and cancer referrals are seen sooner, and your own wait depends on your condition and your consultant. Use WaitLens to start a conversation with your GP or hospital, not to make clinical decisions.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="wrap prose" id="method" aria-labelledby="method-title">
+      <h2 id="method-title">How WaitLens works</h2>
+      <div class="method-grid">
+        <div>
+          <h3>Data</h3>
+          <p>Every month NHS England publishes a "Full CSV data file" of consultant-led referral-to-treatment (RTT) waits for every provider, commissioner and specialty in England, in one-week bands. A scheduled GitHub Actions job downloads the latest <span id="month-count">25</span> months, adds the commissioner rows together for each provider, and publishes the results as static files. Locations come from the NHS Organisation Data Service and postcodes.io.</p>
+          <h3>Measures</h3>
+          <ul>
+            <li><strong>Waiting now</strong>: pathways still waiting at the end of the month, the share waiting 18 weeks or less (the measure behind the 92% standard), the median wait so far, and the number waiting more than 52 weeks.</li>
+            <li><strong>Recently treated</strong>: how long patients waited before treatment started, over the last three months combined so smaller services give steadier figures. "Admitted" treatment needs a hospital admission, such as an operation; "outpatient" treatment does not.</li>
+            <li>Medians and 92nd percentiles are estimated by linear interpolation inside the weekly band that contains them, the same approach NHS England describes. They are hidden when fewer than 20 pathways sit behind them.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Checked against the published figures</h3>
+          <p>Each build recomputes national totals and compares them with NHS England's statistical press notices.</p>
+          <div id="validation"></div>
+          <h3>Limitations</h3>
+          <ul>
+            <li>Figures are for providers, not hospital sites. Distances are to a provider's registered address, so large trusts with several hospitals may be closer or further than shown. Independent providers reported as one organisation with many sites have no distance.</li>
+            <li>Trusts that did not submit data for a month are missing for that month, as in NHS England's own provider tables.</li>
+            <li>Some patients are on more than one pathway, so pathways are not the same as people.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p><strong>WaitLens</strong> is an independent open-source project by <a href="https://www.linkedin.com/in/chandangowda952">Chandan Gowda</a>. It is not affiliated with or endorsed by the NHS.</p>
+      <p>Contains public sector information from NHS England, licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. Postcode lookups by <a href="https://postcodes.io">postcodes.io</a>. Code under the MIT licence on <a href="https://github.com/chandan9502/waitlens">GitHub</a>.</p>
+      <p id="generated"></p>
+    </div>
+  </footer>
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
+</body>
+</html>
