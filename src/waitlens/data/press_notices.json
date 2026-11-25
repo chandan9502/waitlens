@@ -1,0 +1,31 @@
+{
+  "2026-03": {
+    "source": "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/05/Mar26-RTT-statistical-press-notice-PDF-545K-Dc1i9U.pdf",
+    "note": "Table 1, England, not including estimates for missing trusts",
+    "incomplete_total": 7014879,
+    "pct_within_18": 65.3,
+    "completed_admitted": 319211,
+    "completed_nonadmitted": 1370774,
+    "new_periods": 1925831
+  },
+  "2026-06": {
+    "source": "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/08/Jun26-RTT-statistical-press-notice-PDF-579K-6jPlxd.pdf",
+    "note": "Table 1, England, not including estimates for missing trusts",
+    "incomplete_total": 7147562,
+    "pct_within_18": 65.8,
+    "completed_admitted": 318650,
+    "completed_nonadmitted": 1307837,
+    "new_periods": 1930912
+  },
+  "2026-09": {
+    "source": "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/11/Sep26-RTT-SPN-publication-PDF-391K-ojyW5x.pdf",
+    "note": "Table 1, England, not including estimates for missing trusts; median and 92nd percentile from the main findings",
+    "incomplete_total": 7074324,
+    "pct_within_18": 65.9,
+    "median_weeks": 12.2,
+    "p92_weeks": 37.7,
+    "completed_admitted": 310574,
+    "completed_nonadmitted": 1292093,
+    "new_periods": 1896640
+  }
+}
