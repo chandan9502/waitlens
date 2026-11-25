@@ -88,16 +88,30 @@ def discover(session, years: int = 3, today: dt.date | None = None) -> dict[str,
     """Fetch the yearly RTT pages and return {"YYYY-MM": zip_url}, oldest first."""
     today = today or dt.date.today()
     links: dict[str, str] = {}
-    errors = []
+    notes = []
     for year in financial_years(today, years):
         url = YEAR_PAGE.format(year=year)
         response = session.get(url, timeout=60)
         if response.status_code == 404:
-            errors.append(f"{url}: 404")
+            notes.append(f"{url}: HTTP 404")
             continue
         response.raise_for_status()
-        for period, link in parse_full_csv_links(response.text, url).items():
+        found = parse_full_csv_links(response.text, url)
+        if not found:
+            notes.append(f"{url}: {describe_page(response.text)}")
+        for period, link in found.items():
             links.setdefault(period, link)
     if not links:
-        raise RuntimeError("No 'Full CSV data file' links found on the RTT pages. " + "; ".join(errors))
+        raise RuntimeError("No 'Full CSV data file' links found on the RTT pages.\n" + "\n".join(notes))
     return dict(sorted(links.items()))
+
+
+def describe_page(html: str) -> str:
+    """A one-line summary of a page, to explain why no links were found."""
+    parser = _Anchors()
+    parser.feed(html)
+    zips = [text for href, text in parser.links if href and ".zip" in href.lower()]
+    title = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    heading = " ".join(title.group(1).split())[:80] if title else "no title"
+    sample = "; ".join(zips[:3]) or "none"
+    return f"{len(html):,} characters, title {heading!r}, {len(parser.links)} links, ZIP links: {sample}"
