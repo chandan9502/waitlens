@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "waitlens"
+dynamic = ["version"]
+description = "NHS England referral-to-treatment waiting times, hospital by hospital: data pipeline for the WaitLens site."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Chandan Gowda Hadli Subhash"}]
+keywords = ["nhs", "waiting-times", "rtt", "open-data", "healthcare", "uk"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = ["numpy>=1.24", "pandas>=2.0", "requests>=2.31"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4", "build>=1"]
+
+[project.scripts]
+waitlens = "waitlens.cli:main"
+
+[project.urls]
+Homepage = "https://chandan9502.github.io/waitlens/"
+Source = "https://github.com/chandan9502/waitlens"
+
+[tool.setuptools.dynamic]
+version = {attr = "waitlens.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+waitlens = ["data/*.json"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_discover.py" = ["E501"]
