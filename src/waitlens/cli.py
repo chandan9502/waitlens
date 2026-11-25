@@ -81,7 +81,11 @@ def cmd_build(args) -> int:
     keep_from = max(0, len(jobs) - COMPLETED_WINDOW)
     summaries = []
     for index, (period, path) in enumerate(jobs):
-        month = read_month(path, label=sources.get(period, Path(path).name))
+        try:
+            month = read_month(path, label=sources.get(period, Path(path).name))
+        except (ValueError, KeyError) as exc:
+            print(f"warning: skipping {period or path}: {exc}", file=sys.stderr)
+            continue
         if period and month.period != period:
             print(f"warning: {path.name} says {month.period}, the page said {period}", file=sys.stderr)
         summaries.append(summarise_month(month, keep_completed=index >= keep_from))
@@ -89,6 +93,9 @@ def cmd_build(args) -> int:
         bands = len(month.bands)
         print(f"  {month.period}: {len(month.frame):,} rows, {providers} providers, {bands} weekly bands")
 
+    if not summaries:
+        print("error: no month could be read", file=sys.stderr)
+        return 1
     summaries.sort(key=lambda summary: summary.period)
     locations = {}
     if args.geo:

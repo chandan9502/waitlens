@@ -1,4 +1,10 @@
-"""Find the monthly "Full CSV data file" downloads on NHS England's RTT pages."""
+"""Find the monthly "Full CSV data file" downloads published by NHS England.
+
+The statistics site is WordPress. Its HTML pages ask automated clients to pass a
+browser challenge, but its public media API and the files themselves are served
+directly, so WaitLens lists the ZIP files through the API and only falls back to
+reading the yearly HTML pages if the API finds nothing.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +14,7 @@ from html.parser import HTMLParser
 from urllib.parse import urljoin
 
 YEAR_PAGE = "https://www.england.nhs.uk/statistics/statistical-work-areas/rtt-waiting-times/rtt-data-{year}/"
+MEDIA_API = "https://www.england.nhs.uk/statistics/wp-json/wp/v2/media"
 
 _MONTH_ABBR = {
     "jan": 1,
@@ -24,6 +31,9 @@ _MONTH_ABBR = {
     "dec": 12,
 }
 _LINK_TEXT = re.compile(r"full\s+csv\s+data\s+file\s+([a-z]{3})[a-z]*[\s\-]*(\d{2,4})(.*)", re.IGNORECASE)
+_FILE_NAME = re.compile(
+    r"full[-_ ]csv[-_ ]data[-_ ]file[-_ ]([a-z]{3})[a-z]*[-_ ]?(\d{2,4})(.*)", re.IGNORECASE
+)
 
 
 class _Anchors(HTMLParser):
@@ -70,12 +80,9 @@ def parse_full_csv_links(html: str, base_url: str) -> dict[str, str]:
         match = _LINK_TEXT.search(text)
         if not match:
             continue
-        month = _MONTH_ABBR.get(match.group(1).lower())
-        if month is None:
+        period = _period(match.group(1), match.group(2))
+        if period is None:
             continue
-        year = int(match.group(2))
-        year = year + 2000 if year < 100 else year
-        period = f"{year:04d}-{month:02d}"
         revised = "revis" in match.group(3).lower() or "revis" in href.lower()
         url = urljoin(base_url, href)
         current = found.get(period)
@@ -84,18 +91,79 @@ def parse_full_csv_links(html: str, base_url: str) -> dict[str, str]:
     return {period: url for period, (_, url) in sorted(found.items())}
 
 
+def _period(month_text: str, year_text: str) -> str | None:
+    month = _MONTH_ABBR.get(month_text.lower())
+    if month is None:
+        return None
+    year = int(year_text)
+    year = year + 2000 if year < 100 else year
+    return f"{year:04d}-{month:02d}"
+
+
+def parse_media_items(items: list[dict]) -> dict[str, str]:
+    """Return {"YYYY-MM": url} from WordPress media API items, preferring revised then newer uploads."""
+    best: dict[str, tuple[bool, str, str]] = {}
+    for item in items:
+        url = str(item.get("source_url") or "")
+        name = url.rsplit("/", 1)[-1]
+        if not name.lower().endswith(".zip"):
+            continue
+        match = _FILE_NAME.search(name)
+        if not match:
+            continue
+        period = _period(match.group(1), match.group(2))
+        if period is None:
+            continue
+        rank = ("revis" in match.group(3).lower(), str(item.get("date") or ""), url)
+        if period not in best or rank > best[period]:
+            best[period] = rank
+    return {period: rank[2] for period, rank in sorted(best.items())}
+
+
+def discover_media(session, pages: int = 10) -> dict[str, str]:
+    """List the Full CSV ZIPs through the statistics site's public WordPress media API."""
+    items: list[dict] = []
+    for page in range(1, pages + 1):
+        params = {
+            "search": "Full-CSV-data-file",
+            "per_page": 100,
+            "page": page,
+            "orderby": "date",
+            "order": "desc",
+            "_fields": "id,date,source_url,title",
+        }
+        response = session.get(MEDIA_API, params=params, timeout=60)
+        if response.status_code == 400:  # WordPress answers 400 past the last page
+            break
+        response.raise_for_status()
+        batch = response.json()
+        if not isinstance(batch, list) or not batch:
+            break
+        items.extend(batch)
+        if len(batch) < 100:
+            break
+    return parse_media_items(items)
+
+
 def discover(session, years: int = 3, today: dt.date | None = None) -> dict[str, str]:
-    """Fetch the yearly RTT pages and return {"YYYY-MM": zip_url}, oldest first."""
-    today = today or dt.date.today()
-    links: dict[str, str] = {}
+    """Return {"YYYY-MM": zip_url}, oldest first, from the media API or else the yearly pages."""
     notes = []
+    try:
+        links = discover_media(session)
+        if links:
+            return links
+        notes.append(f"{MEDIA_API}: no Full CSV data files listed")
+    except Exception as exc:  # fall back to the HTML pages
+        notes.append(f"{MEDIA_API}: {exc}")
+    today = today or dt.date.today()
+    links = {}
     for year in financial_years(today, years):
         url = YEAR_PAGE.format(year=year)
         response = session.get(url, timeout=60)
-        if response.status_code == 404:
-            notes.append(f"{url}: HTTP 404")
+        if response.status_code != 200:
+            waf = response.headers.get("x-amzn-waf-action") if hasattr(response, "headers") else None
+            notes.append(f"{url}: HTTP {response.status_code}" + (f" (WAF {waf})" if waf else ""))
             continue
-        response.raise_for_status()
         found = parse_full_csv_links(response.text, url)
         if not found:
             notes.append(f"{url}: {describe_page(response.text)}")

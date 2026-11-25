@@ -89,3 +89,14 @@ def test_cli_build_from_local_zips(make_month, tmp_path, capsys):
 def test_cli_rejects_zero_months():
     with pytest.raises(SystemExit):
         cli.main(["build", "--months", "0", "--no-geo"])
+
+
+def test_cli_skips_files_it_cannot_read(make_month, tmp_path, capsys):
+    bad = tmp_path / "bad.csv"
+    bad.write_text("Period,Something\nRTT-September-2026,1\n")
+    out = tmp_path / "site-data"
+    assert (
+        cli.main(["build", "--zip", str(make_month("2026-09")), str(bad), "--no-geo", "--out", str(out)]) == 0
+    )
+    assert "skipping" in capsys.readouterr().err
+    assert cli.main(["build", "--zip", str(bad), "--no-geo", "--out", str(out)]) == 1
