@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import math
 import sys
@@ -73,6 +74,15 @@ def cmd_build(args) -> int:
         links = discover(session, years=years)
         chosen = list(links.items())[-args.months :]
         print(f"Found {len(links)} months; using {len(chosen)} ({chosen[0][0]} to {chosen[-1][0]})")
+        for period, url in chosen[-3:]:
+            print(f"  {period}: {url.rsplit('/', 1)[-1]}")
+        year, month = map(int, chosen[-1][0].split("-"))
+        today = dt.date.today()
+        if (today.year * 12 + today.month) - (year * 12 + month) > 3:
+            print(
+                f"warning: the newest file found is for {chosen[-1][0]}; newer months may be missing",
+                file=sys.stderr,
+            )
         jobs = []
         for period, url in chosen:
             sources[period] = url

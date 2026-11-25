@@ -67,6 +67,12 @@ MEDIA = [
         "date": "2025-03-13T08:00:41",
         "source_url": f"{UPLOADS}/2025/03/Full-CSV-data-file-Jan25-ZIP-3M-cc33.zip",
     },
+    {
+        "id": 6,
+        "date": "2026-06-11T09:30:00",
+        "source_url": f"{UPLOADS}/2026/06/20260611-rtt-extract-a1b2.zip",
+        "title": {"rendered": "Full CSV data file Apr26 (ZIP, 3M)"},
+    },
 ]
 
 
@@ -107,7 +113,8 @@ class FakeSession:
 
 def test_parse_media_items_prefers_revised_files_and_ignores_others():
     links = parse_media_items(MEDIA)
-    assert list(links) == ["2025-01", "2026-08", "2026-09"]
+    assert list(links) == ["2025-01", "2026-04", "2026-08", "2026-09"]
+    assert links["2026-04"].endswith("20260611-rtt-extract-a1b2.zip")  # matched on its title
     assert links["2026-08"].endswith("Aug26-revised-ZIP-3M-bb22.zip")
     assert links["2026-09"].endswith("Sep26-ZIP-3M-ojyW5x.zip")
 
@@ -115,8 +122,8 @@ def test_parse_media_items_prefers_revised_files_and_ignores_others():
 def test_discover_uses_the_media_api_first():
     session = FakeSession(media=MEDIA)
     links = discover(session, years=1, today=dt.date(2026, 11, 25))
-    assert list(links) == ["2025-01", "2026-08", "2026-09"]
-    assert session.requested == [MEDIA_API]
+    assert list(links) == ["2025-01", "2026-04", "2026-08", "2026-09"]
+    assert session.requested == [MEDIA_API, MEDIA_API]
 
 
 def test_discover_media_pages_through_results():
@@ -137,7 +144,7 @@ def test_discover_falls_back_to_the_yearly_pages():
     session = FakeSession(pages={YEAR_PAGE.format(year="2026-27"): PAGE}, media=[])
     links = discover(session, years=2, today=dt.date(2026, 11, 25))
     assert list(links) == ["2026-08", "2026-09"]
-    assert session.requested[1:] == [YEAR_PAGE.format(year="2026-27"), YEAR_PAGE.format(year="2025-26")]
+    assert session.requested[2:] == [YEAR_PAGE.format(year="2026-27"), YEAR_PAGE.format(year="2025-26")]
 
 
 def test_discover_explains_what_went_wrong():

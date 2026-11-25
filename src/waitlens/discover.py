@@ -106,9 +106,11 @@ def parse_media_items(items: list[dict]) -> dict[str, str]:
     for item in items:
         url = str(item.get("source_url") or "")
         name = url.rsplit("/", 1)[-1]
-        if not name.lower().endswith(".zip"):
+        if not name.lower().split("?")[0].endswith(".zip"):
             continue
-        match = _FILE_NAME.search(name)
+        title = item.get("title")
+        title = title.get("rendered", "") if isinstance(title, dict) else str(title or "")
+        match = _FILE_NAME.search(name) or _LINK_TEXT.search(title)
         if not match:
             continue
         period = _period(match.group(1), match.group(2))
@@ -120,28 +122,33 @@ def parse_media_items(items: list[dict]) -> dict[str, str]:
     return {period: rank[2] for period, rank in sorted(best.items())}
 
 
+#: Older uploads are titled like their file names, newer ones like the link text, so search both ways.
+MEDIA_SEARCHES = ("Full CSV data file", "Full-CSV-data-file")
+
+
 def discover_media(session, pages: int = 10) -> dict[str, str]:
     """List the Full CSV ZIPs through the statistics site's public WordPress media API."""
     items: list[dict] = []
-    for page in range(1, pages + 1):
-        params = {
-            "search": "Full-CSV-data-file",
-            "per_page": 100,
-            "page": page,
-            "orderby": "date",
-            "order": "desc",
-            "_fields": "id,date,source_url,title",
-        }
-        response = session.get(MEDIA_API, params=params, timeout=60)
-        if response.status_code == 400:  # WordPress answers 400 past the last page
-            break
-        response.raise_for_status()
-        batch = response.json()
-        if not isinstance(batch, list) or not batch:
-            break
-        items.extend(batch)
-        if len(batch) < 100:
-            break
+    for search in MEDIA_SEARCHES:
+        for page in range(1, pages + 1):
+            params = {
+                "search": search,
+                "per_page": 100,
+                "page": page,
+                "orderby": "date",
+                "order": "desc",
+                "_fields": "id,date,source_url,title",
+            }
+            response = session.get(MEDIA_API, params=params, timeout=60)
+            if response.status_code == 400:  # WordPress answers 400 past the last page
+                break
+            response.raise_for_status()
+            batch = response.json()
+            if not isinstance(batch, list) or not batch:
+                break
+            items.extend(batch)
+            if len(batch) < 100:
+                break
     return parse_media_items(items)
 
 
